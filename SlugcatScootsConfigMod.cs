@@ -39,9 +39,10 @@ namespace SlugcatScootsConfig
                 On.RainWorldGame.ShutDownProcess += RainWorldGameOnShutDownProcess;
                 On.GameSession.ctor += GameSessionOnctor;
                 On.Player.PyroDeathThreshold += RemoveArtiDrown;
+                IL.Player.UpdateAnimation += Player_UpdateAnimation;
+                IL.Player.UpdateBodyMode += Player_UpdateBodyMode;
                 IL.Player.Jump += Player_Jump;
                 IL.Player.TerrainImpact += Player_TerrainImpact;
-                IL.Player.UpdateAnimation += Player_UpdateAnimation;
 
                 IsInit = true;
                 Debug.Log("Slugcat Scoots Config Initialized successfully!");
@@ -53,9 +54,83 @@ namespace SlugcatScootsConfig
             }
         }
 
+        private void Player_UpdateBodyMode(ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+            //Corridor boost force
+            //Vertical success
+            c.Index = 0;
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchLdcI4(22),
+                x => x.MatchStfld<Player>("verticalCorridorSlideCounter")
+            );
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate<Action<Player>>((player) =>
+            {
+                player.bodyChunks[0].vel.y += SlugcatScootsConfigOptions.corridorBoost.Value;
+                player.bodyChunks[1].vel.y += SlugcatScootsConfigOptions.corridorBoost.Value;
+            });
+            //Vertical failure
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchLdcI4(34),
+                x => x.MatchStfld<Player>("verticalCorridorSlideCounter")
+            );
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate<Action<Player>>((player) =>
+            {
+                player.bodyChunks[0].vel.y += SlugcatScootsConfigOptions.failedCorridorBoost.Value;
+                player.bodyChunks[1].vel.y += SlugcatScootsConfigOptions.failedCorridorBoost.Value;
+            });
+            //Horizontal success
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchLdcI4(25),
+                x => x.MatchStfld<Player>("horizontalCorridorSlideCounter")
+            );
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate<Action<Player>>((player) =>
+            {
+                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.corridorBoost.Value * 
+                (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
+                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.corridorBoost.Value *
+                (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
+            });
+            //Horizontal failure
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchLdcI4(15),
+                x => x.MatchStfld<Player>("horizontalCorridorSlideCounter")
+            );
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate<Action<Player>>((player) =>
+            {
+                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.failedCorridorBoost.Value *
+                (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
+                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.failedCorridorBoost.Value *
+                (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
+            });
+
+            //Post-boost stun
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchLdcI4(15),
+                x => x.MatchStfld<Player>("slowMovementStun"),
+                x => x.MatchLdcR4(0f)
+            );
+            c.Index -= 2;
+            c.Emit(OpCodes.Pop);
+            c.EmitDelegate <Func<int>>(() =>
+            {
+                return SlugcatScootsConfigOptions.postCorridorBoostStun.Value;
+            });
+        }
+
         private void Player_UpdateAnimation(ILContext il)
         {
             ILCursor c = new ILCursor(il);
+
             //Slide initial animation duration
             c.GotoNext(MoveType.After,
                 x => x.MatchLdarg(0),
@@ -243,6 +318,43 @@ namespace SlugcatScootsConfig
                     return;
                 player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.rollSpeed.Value * (float)player.rollDirection;
                 player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.rollSpeed.Value * (float)player.rollDirection;
+            });
+
+            //Pole boost and regression
+            c.Index = 0;
+            c.GotoNext(MoveType.After,
+                x => x.MatchConvR4(),
+                x => x.MatchLdcR4(17f),
+                x => x.MatchLdcR4(0f),
+                x => x.MatchLdcR4(3f),
+                x => x.MatchLdcR4(-1.2f),
+                x => x.MatchLdcR4(0.45f)
+            );
+            c.Index -= 2;
+            c.Emit(OpCodes.Pop);
+            c.EmitDelegate<Func<float>>(() =>
+            {
+                return SlugcatScootsConfigOptions.poleBoost.Value;
+            });
+            c.Index++;
+            c.Emit(OpCodes.Pop);
+            c.EmitDelegate<Func<float>>(() =>
+            {
+                return SlugcatScootsConfigOptions.poleRegression.Value * -1f;
+            });
+
+            //Post-pole boost stun duration
+            c.Index = 0;
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchLdarg(0),
+                x => x.MatchLdfld<Player>("slowMovementStun"),
+                x => x.MatchLdcI4(16)
+            );
+            c.Emit(OpCodes.Pop);
+            c.EmitDelegate<Func<int>>(() =>
+            {
+                return SlugcatScootsConfigOptions.postPoleBoostStun.Value;
             });
         }
 
