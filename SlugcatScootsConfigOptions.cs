@@ -25,7 +25,7 @@ namespace SlugcatScootsConfig
 
         public static readonly Configurable<int> wallPounceX = instance.config.Bind<int>("WallPounceX", 17, new ConfigAcceptableRange<int>(0, 100));
         public static readonly Configurable<int> wallPounceY = instance.config.Bind<int>("WallPounceY", 10, new ConfigAcceptableRange<int>(0, 100));
-        public static readonly Configurable<float> wallPounceStun = instance.config.Bind<float>("WallPounceStun", 20f, new ConfigAcceptableRange<float>(0f, 40f));
+        public static readonly Configurable<int> wallPounceStun = instance.config.Bind<int>("WallPounceStun", 20, new ConfigAcceptableRange<int>(0, 80));
 
         public static readonly Configurable<int> bellySlide = instance.config.Bind<int>("BellySlide", 18, new ConfigAcceptableRange<int>(0, 100));
         public static readonly Configurable<int> longBellySlide = instance.config.Bind<int>("LongBellySlide", 14, new ConfigAcceptableRange<int>(0, 100));
@@ -36,8 +36,8 @@ namespace SlugcatScootsConfig
         public static readonly Configurable<int> slidePounceWindow = instance.config.Bind<int>("SlidePounceWindow", 12, new ConfigAcceptableRange<int>(0, 80));
         public static readonly Configurable<int> extendedSlidePounceWindow = instance.config.Bind<int>("ExtendedSlidePounceWindow", 34, new ConfigAcceptableRange<int>(0, 80));
 
-        public static readonly Configurable<int> postSlideStun = instance.config.Bind<int>("PostSlideStun", 20, new ConfigAcceptableRange<int>(0, 80));
-        public static readonly Configurable<int> extendedPostSlideStun = instance.config.Bind<int>("PostExtendedSlideStun", 40, new ConfigAcceptableRange<int>(0, 80));
+        public static readonly Configurable<int> postSlideStun = instance.config.Bind<int>("PostSlideStun", 40, new ConfigAcceptableRange<int>(0, 80));
+        public static readonly Configurable<int> standingPostSlideStun = instance.config.Bind<int>("StandingPostSlideStun", 20, new ConfigAcceptableRange<int>(0, 80));
 
         public static readonly Configurable<int> slideDuration = instance.config.Bind<int>("SlideDuration", 15, new ConfigAcceptableRange<int>(0, 400));
         public static readonly Configurable<int> extendedSlideDuration = instance.config.Bind<int>("ExtendedSlideDuration", 39, new ConfigAcceptableRange<int>(0, 400));
@@ -165,15 +165,15 @@ namespace SlugcatScootsConfig
             SlideOptions2 = new UIelement[]
             {
 
-                new OpLabel(labelX, firstHeight, "Post-Slide stun duration. Normal: 20."),
+                new OpLabel(labelX, firstHeight, "Post-Slide stun duration. Normal: 40."),
                 new OpSlider(postSlideStun, new Vector2(sliderX, firstHeight - labelSpacing), sliderLength)
                 {
-                    description = "In frames. 1 second = 40 frames. Slugcat will move slower for this time after finishing a slide."
+                    description = "In frames. 1 second = 40 frames. Slugcat will move slower for this time after finishing a slide and not standing (ex: a failed slide)."
                 },
-                new OpLabel(labelX, firstHeight - shortSpacing, "Post-Extended Slide stun duration. Normal: 40."),
-                new OpSlider(extendedPostSlideStun, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength)
+                new OpLabel(labelX, firstHeight - shortSpacing, "Post-Slide stun duration, if slugcat is standing at the end. Normal: 20."),
+                new OpSlider(standingPostSlideStun, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength)
                 {
-                    description = "In frames. 1 second = 40 frames. Slugcat will move slower for this time after finishing an extended slide."
+                    description = "In frames. 1 second = 40 frames. Slugcat will move slower for this time after finishing a slide and standing up."
                 },
 
                 new OpLabel(labelX, secondHeight, "Earliest slide pounce frame. Normal: 12, Rivulet: 6."),
@@ -197,7 +197,7 @@ namespace SlugcatScootsConfig
                 new OpLabel(labelX, firstHeight-shortSpacing, "Wallpounce Y. Normal: 10, Rivulet: 10."),
                 new OpSlider(wallPounceY, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength),
                 new OpLabel(labelX, firstHeight-shortSpacing*2, "Post-Wallpounce stun. Normal: 20, Rivulet: 15."),
-                new OpFloatSlider(wallPounceStun, new Vector2(sliderX, firstHeight - shortSpacing*2 - labelSpacing), sliderLength)
+                new OpSlider(wallPounceStun, new Vector2(sliderX, firstHeight - shortSpacing*2 - labelSpacing), sliderLength)
                 {
                     description = "Time period after a Wallpounce in which slugcat won't be able to drift in the air."
                 },

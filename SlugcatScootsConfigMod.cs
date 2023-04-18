@@ -17,7 +17,7 @@ using UnityEngine;
 namespace SlugcatScootsConfig
 {
 
-    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.0.0")]
+    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.0")]
     public partial class SlugcatScootsConfigMod : BaseUnityPlugin
     {
         private void OnEnable()
@@ -257,7 +257,7 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Pop);
             c.EmitDelegate<Func<int>>(() =>
             {
-                return SlugcatScootsConfigOptions.extendedPostSlideStun.Value;
+                return SlugcatScootsConfigOptions.postSlideStun.Value;
             });
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcI4(20)
@@ -265,7 +265,7 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Pop);
             c.EmitDelegate<Func<int>>(() =>
             {
-                return SlugcatScootsConfigOptions.postSlideStun.Value;
+                return SlugcatScootsConfigOptions.standingPostSlideStun.Value;
             });
 
             //Roll duration
