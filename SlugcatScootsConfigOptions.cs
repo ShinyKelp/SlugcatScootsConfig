@@ -25,12 +25,12 @@ namespace SlugcatScootsConfig
 
         public static readonly Configurable<int> wallPounceX = instance.config.Bind<int>("WallPounceX", 17, new ConfigAcceptableRange<int>(0, 100));
         public static readonly Configurable<int> wallPounceY = instance.config.Bind<int>("WallPounceY", 10, new ConfigAcceptableRange<int>(0, 100));
-        public static readonly Configurable<int> wallPounceStun = instance.config.Bind<int>("WallPounceStun", 20, new ConfigAcceptableRange<int>(0, 80));
+        public static readonly Configurable<int> postWallPounceStun = instance.config.Bind<int>("WallPounceStun", 20, new ConfigAcceptableRange<int>(0, 80));
 
-        public static readonly Configurable<int> bellySlide = instance.config.Bind<int>("BellySlide", 18, new ConfigAcceptableRange<int>(0, 100));
-        public static readonly Configurable<int> longBellySlide = instance.config.Bind<int>("LongBellySlide", 14, new ConfigAcceptableRange<int>(0, 100));
+        public static readonly Configurable<int> slideAcceleration = instance.config.Bind<int>("BellySlide", 18, new ConfigAcceptableRange<int>(0, 100));
+        public static readonly Configurable<int> extendedSlideAcceleration = instance.config.Bind<int>("LongBellySlide", 14, new ConfigAcceptableRange<int>(0, 100));
 
-        public static readonly Configurable<int> slideInit = instance.config.Bind<int>("SlideInitDuration", 6, new ConfigAcceptableRange<int>(0, 80));
+        public static readonly Configurable<int> slideInitDuration = instance.config.Bind<int>("SlideInitDuration", 6, new ConfigAcceptableRange<int>(0, 80));
         public static readonly Configurable<float> slideInitPushback = instance.config.Bind<float>("SlideInitPushback", 9.1f, new ConfigAcceptableRange<float>(0f, 40f));
 
         public static readonly Configurable<int> slidePounceWindow = instance.config.Bind<int>("SlidePounceWindow", 12, new ConfigAcceptableRange<int>(0, 80));
@@ -42,24 +42,27 @@ namespace SlugcatScootsConfig
         public static readonly Configurable<int> slideDuration = instance.config.Bind<int>("SlideDuration", 15, new ConfigAcceptableRange<int>(0, 400));
         public static readonly Configurable<int> extendedSlideDuration = instance.config.Bind<int>("ExtendedSlideDuration", 39, new ConfigAcceptableRange<int>(0, 400));
 
-        public static readonly Configurable<int> rollCount = instance.config.Bind<int>("RollCount", 15, new ConfigAcceptableRange<int>(0, 800));
+        public static readonly Configurable<int> rollDuration = instance.config.Bind<int>("RollCount", 15, new ConfigAcceptableRange<int>(0, 800));
         public static readonly Configurable<float> rollSpeed = instance.config.Bind<float>("RollSpeed", 0f, new ConfigAcceptableRange<float>(-1f, 10f));
 
-        public static readonly Configurable<float> poleBoost = instance.config.Bind<float>("PoleBoost", 3f, new ConfigAcceptableRange<float>(0f, 40f));
-        public static readonly Configurable<float> poleRegression = instance.config.Bind<float>("PoleRegression", 1.2f, new ConfigAcceptableRange<float>(0f, 40f));
+        public static readonly Configurable<float> poleBoostForce = instance.config.Bind<float>("PoleBoost", 3f, new ConfigAcceptableRange<float>(0f, 40f));
+        public static readonly Configurable<float> poleBoostRegression = instance.config.Bind<float>("PoleRegression", 1.2f, new ConfigAcceptableRange<float>(0f, 40f));
         public static readonly Configurable<int> postPoleBoostStun = instance.config.Bind<int>("PostPoleBoostStun", 16, new ConfigAcceptableRange<int>(0, 80));
 
-        public static readonly Configurable<float> corridorBoost = instance.config.Bind<float>("CorridorBoost", 0f, new ConfigAcceptableRange<float>(0f, 40f));
-        public static readonly Configurable<float> failedCorridorBoost = instance.config.Bind<float>("FailedCorridorBoost", 0f, new ConfigAcceptableRange<float>(0f, 40f));
+        public static readonly Configurable<float> corridorBoostForce = instance.config.Bind<float>("CorridorBoost", 0f, new ConfigAcceptableRange<float>(0f, 40f));
+        public static readonly Configurable<float> failedCorridorBoostForce = instance.config.Bind<float>("FailedCorridorBoost", 0f, new ConfigAcceptableRange<float>(0f, 40f));
         public static readonly Configurable<int> postCorridorBoostStun = instance.config.Bind<int>("PostCorridorBoostStun", 15, new ConfigAcceptableRange<int>(0, 80));
 
+        public static readonly Configurable<bool> doubleJumpOverTriple = instance.config.Bind<bool>("DoubleJumpOverTriple", false);
+        public static readonly Configurable<float> middleJumpBoost = instance.config.Bind<float>("MiddleJumpBoost", 1.5f, new ConfigAcceptableRange<float>(-10f, 20f));
+        public static readonly Configurable<float> flipJumpBoost = instance.config.Bind<float>("FlipJumpBoost", 3f, new ConfigAcceptableRange<float>(-10f, 20f));
         //*/
 
         private const float labelSpacing = 35f, shortSpacing = 60f, longSpacing = 80f;
         private const float labelX = 28f, sliderX = 40f;
         private const int sliderLength = 400;
 
-        private UIelement[] JumpOptions, WallPounceOptions, SlideOptions, SlideOptions2, RollOptions, BoostOptions;
+        private UIelement[] JumpOptions, WallPounceOptions, SlideOptions, SlideOptions2, RollOptions, BoostOptions, TripleJumpOptions;
         private OpSimpleButton defaultJumps, defaultWallpounce, defaultSlide, defaultRoll, defaultBoosts;
         public override void Initialize()
         {
@@ -69,15 +72,8 @@ namespace SlugcatScootsConfig
             var slideTab2 = new OpTab(this, "Slide 2");
             var rollTab = new OpTab(this, "Roll");
             var boostTab = new OpTab(this, "Boosts");
-            this.Tabs = new[]
-            {
-                jumpTab,
-                slideTab,
-                slideTab2,
-                rollTab,
-                wallPounceTab,
-                boostTab
-            };
+            var tripleJumpTab = new OpTab(this, "Triple Jump");
+            
 
             defaultJumps = new OpSimpleButton(new Vector2(530f, 10f), new Vector2(60, 30), "Defaults")
             {
@@ -136,9 +132,9 @@ namespace SlugcatScootsConfig
             SlideOptions = new UIelement[]
             {
                 new OpLabel(labelX, firstHeight, "Slide acceleration. Normal: 18, Rivulet: 25, Gourmand: 45."),
-                new OpSlider(bellySlide, new Vector2(sliderX, firstHeight - labelSpacing), sliderLength),
+                new OpSlider(slideAcceleration, new Vector2(sliderX, firstHeight - labelSpacing), sliderLength),
                 new OpLabel(labelX, firstHeight - shortSpacing, "Extended Slide acceleration. Normal: 14, Rivulet: 20, Gourmand: 40."),
-                new OpSlider(longBellySlide, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength),
+                new OpSlider(extendedSlideAcceleration, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength),
 
                 new OpLabel(labelX, secondHeight, "Slide total duration. Normal: 15."),
                 new OpSlider(slideDuration, new Vector2(sliderX, secondHeight - labelSpacing), sliderLength)
@@ -150,7 +146,7 @@ namespace SlugcatScootsConfig
 
 
                 new OpLabel(labelX, thirdHeight, "Initial Slide prep duration. Normal: 6, Rivulet: 0*."),
-                new OpSlider(slideInit, new Vector2(sliderX, thirdHeight - labelSpacing), sliderLength)
+                new OpSlider(slideInitDuration, new Vector2(sliderX, thirdHeight - labelSpacing), sliderLength)
                 {
                     description = "Initial hop animation of the slide. Rivulet always skips it."
                 },
@@ -197,7 +193,7 @@ namespace SlugcatScootsConfig
                 new OpLabel(labelX, firstHeight-shortSpacing, "Wallpounce Y. Normal: 10, Rivulet: 10."),
                 new OpSlider(wallPounceY, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength),
                 new OpLabel(labelX, firstHeight-shortSpacing*2, "Post-Wallpounce stun. Normal: 20, Rivulet: 15."),
-                new OpSlider(wallPounceStun, new Vector2(sliderX, firstHeight - shortSpacing*2 - labelSpacing), sliderLength)
+                new OpSlider(postWallPounceStun, new Vector2(sliderX, firstHeight - shortSpacing*2 - labelSpacing), sliderLength)
                 {
                     description = "Time period after a Wallpounce in which slugcat won't be able to drift in the air."
                 },
@@ -207,7 +203,7 @@ namespace SlugcatScootsConfig
             RollOptions = new UIelement[]
             {
                 new OpLabel(labelX, firstHeight, "Rolling duration. Normal: 15, Gourmand: Infinite*"),
-                new OpSlider(rollCount, new Vector2(sliderX, firstHeight - labelSpacing), sliderLength)
+                new OpSlider(rollDuration, new Vector2(sliderX, firstHeight - labelSpacing), sliderLength)
                 {
                     description = "Gourmand can roll as long as they don't run out of stamina. This option won't affect them."
                 },
@@ -223,9 +219,9 @@ namespace SlugcatScootsConfig
             BoostOptions = new UIelement[]
             {
                 new OpLabel(labelX, firstHeight, "Pole Boost force. Normal: 3."),
-                new OpFloatSlider(poleBoost, new Vector2(sliderX, firstHeight - labelSpacing), sliderLength),
+                new OpFloatSlider(poleBoostForce, new Vector2(sliderX, firstHeight - labelSpacing), sliderLength),
                 new OpLabel(labelX, firstHeight - shortSpacing, "Pole Boost regression. Normal: 1.2."),
-                new OpFloatSlider(poleRegression, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength)
+                new OpFloatSlider(poleBoostRegression, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength)
                 {
                     description = "Negative force applied to slugcat after a pole boost."
                 },
@@ -236,12 +232,12 @@ namespace SlugcatScootsConfig
                 },
 
                 new OpLabel(labelX, secondHeight, "Corridor Boost force (Addition). Base: 7."),
-                new OpFloatSlider(corridorBoost, new Vector2(sliderX, secondHeight - labelSpacing), sliderLength)
+                new OpFloatSlider(corridorBoostForce, new Vector2(sliderX, secondHeight - labelSpacing), sliderLength)
                 {
                     description = "This force is added to the base value upon a successful Corridor Boost."
                 },
                 new OpLabel(labelX, secondHeight - shortSpacing, "Failed Corridor Boost force (Addition). Base: 5."),
-                new OpFloatSlider(failedCorridorBoost, new Vector2(sliderX, secondHeight - shortSpacing - labelSpacing), sliderLength)
+                new OpFloatSlider(failedCorridorBoostForce, new Vector2(sliderX, secondHeight - shortSpacing - labelSpacing), sliderLength)
                 {
                     description = "This force is added to the base value upon a failed Corridor Boost."
                 },
@@ -253,12 +249,50 @@ namespace SlugcatScootsConfig
                 defaultBoosts
             };
 
+            secondHeight = firstHeight - shortSpacing;
+            thirdHeight = secondHeight - shortSpacing;
+
+            TripleJumpOptions = new UIelement[]
+            {
+                new OpCheckBox(doubleJumpOverTriple, new Vector2(sliderX, firstHeight - 20)),
+                new OpLabel(sliderX + 28f, firstHeight - 20 + 3, "Flip will happen on second jump (unchecked by default)"),
+                new OpLabel(labelX, secondHeight, "Middle Jump Boost. Default: 1.5"),
+                new OpFloatSlider(middleJumpBoost, new Vector2(sliderX, secondHeight - labelSpacing), sliderLength),
+                new OpLabel(labelX, thirdHeight, "Flip Jump Boost. Default: 3"),
+                new OpFloatSlider(flipJumpBoost, new Vector2(sliderX, thirdHeight - labelSpacing), sliderLength)
+            };
+
+            if (SlugcatScootsConfigMod.hasTripleJump)
+                this.Tabs = new[]
+                    {
+                        jumpTab,
+                        slideTab,
+                        slideTab2,
+                        rollTab,
+                        wallPounceTab,
+                        boostTab,
+                        tripleJumpTab
+                    };
+            else
+                this.Tabs = new[]
+                    {
+                        jumpTab,
+                        slideTab,
+                        slideTab2,
+                        rollTab,
+                        wallPounceTab,
+                        boostTab
+                    };
+
             jumpTab.AddItems(JumpOptions);
             wallPounceTab.AddItems(WallPounceOptions);
             slideTab.AddItems(SlideOptions);
             slideTab2.AddItems(SlideOptions2);
             rollTab.AddItems(RollOptions);
             boostTab.AddItems(BoostOptions);
+            if (SlugcatScootsConfigMod.hasTripleJump)
+                tripleJumpTab.AddItems(TripleJumpOptions);
+
         }
 
         private void SetDefaultJumps()

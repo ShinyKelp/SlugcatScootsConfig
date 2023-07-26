@@ -8,6 +8,10 @@ using MonoMod.Cil;
 using MoreSlugcats;
 using RWCustom;
 using UnityEngine;
+using System.Reflection;
+using CommonServiceLocator;
+using BepInEx.Bootstrap;
+using System.Collections.Generic;
 
 #pragma warning disable CS0618
 
@@ -17,12 +21,28 @@ using UnityEngine;
 namespace SlugcatScootsConfig
 {
 
-    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.0")]
+    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.1")]
     public partial class SlugcatScootsConfigMod : BaseUnityPlugin
     {
+        public static bool hasTripleJump = false;
+        TripleJump.AttachedField<Player, int> _jumpCount;
+        HashSet<Player> playersToSkipJump;
+
         private void OnEnable()
         {
             On.RainWorld.OnModsInit += RainWorldOnOnModsInit;
+            On.RainWorld.PostModsInit += RainWorld_PostModsInit;
+        }
+
+        private void RainWorld_PostModsInit(On.RainWorld.orig_PostModsInit orig, RainWorld self)
+        {
+            orig(self);
+            if (hasTripleJump)
+            {
+                Debug.Log("Attempting JumpCount search...");
+                GetJumpCountInstance();
+                playersToSkipJump = new HashSet<Player>();
+            }
         }
 
         private bool IsInit;
@@ -34,15 +54,32 @@ namespace SlugcatScootsConfig
                 if (IsInit) return;
 
                 //Your hooks go here
-                MachineConnector.SetRegisteredOI("ShinyKelp.SlugcatScootsConfig", SlugcatScootsConfigOptions.instance);
-
                 On.RainWorldGame.ShutDownProcess += RainWorldGameOnShutDownProcess;
                 On.GameSession.ctor += GameSessionOnctor;
-                On.Player.PyroDeathThreshold += RemoveArtiDrown;
+                On.Player.Jump += Player_Jump;
+                On.Player.Update += Player_Update;
                 IL.Player.UpdateAnimation += Player_UpdateAnimation;
                 IL.Player.UpdateBodyMode += Player_UpdateBodyMode;
                 IL.Player.Jump += Player_Jump;
                 IL.Player.TerrainImpact += Player_TerrainImpact;
+
+                hasTripleJump = false;
+
+                foreach(ModManager.Mod mod in ModManager.ActiveMods)
+                {
+                    if(mod.name == "Triple Jump")
+                    {
+                        Debug.Log("Slugcat Scoots Config detected Triple Jump.");
+                        hasTripleJump = true;
+                        //GetJumpCountInstance();
+                        //Debug.Log("JumpCount instance: " + _jumpCount);
+                        break;
+                    }
+                }
+
+                MachineConnector.SetRegisteredOI("ShinyKelp.SlugcatScootsConfig", SlugcatScootsConfigOptions.instance);
+
+
 
                 IsInit = true;
                 Debug.Log("Slugcat Scoots Config Initialized successfully!");
@@ -53,6 +90,85 @@ namespace SlugcatScootsConfig
                 throw;
             }
         }
+
+        private void Player_Update(On.Player.orig_Update orig, Player self, bool eu)
+        {
+            if (hasTripleJump)
+                SetJumpCounts(orig, self);
+            orig(self, eu);
+        }
+
+        private void SetJumpCounts(On.Player.orig_Update orig, Player self)
+        {
+            if (playersToSkipJump.Contains(self))
+            {
+                //Literally impossible to change jumpCount within Player.Jump call; must be done elsewhere.
+                _jumpCount.Set(self, 2);
+                playersToSkipJump.Remove(self);
+            }
+        }
+
+        #region Triple Jump
+
+        private void GetJumpCountInstance()
+        {
+            foreach (PluginInfo plugin in Chainloader.PluginInfos.Values)
+            {
+                if (plugin.Metadata.GUID == "triplejump")
+                {
+                    Debug.Log("Found JumpCount reference successfully.");
+                    BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+                    _jumpCount = (plugin.Instance.GetType().GetField("_jumpCount", flags).GetValue(plugin.Instance) as TripleJump.AttachedField<Player, int>);
+                    Debug.Log("Stored JumpCount reference successfully.");
+                    break;
+                }
+            }
+        }
+
+        private void Player_Jump(On.Player.orig_Jump orig, Player self)
+        {
+            if (!hasTripleJump)
+            {
+                orig(self);
+                return;
+            }
+            else CustomTripleJump(orig, self);
+        }
+
+        //Code reads same checks as Triple Jump, modifies player.jumpBoost
+        private void CustomTripleJump(On.Player.orig_Jump orig, Player self)
+        {
+            int jumpCount = _jumpCount.Get(self);
+            bool bypassTurnCheck = false;
+
+            //If true, second jump will be flip
+            if (SlugcatScootsConfigOptions.doubleJumpOverTriple.Value && jumpCount == 0 && self.slideCounter >= 10 && self.slideCounter <= 20 && self.standing && self.bodyMode == Player.BodyModeIndex.Stand)
+                playersToSkipJump.Add(self);
+
+            //Checks wether TripleJump's call was done before or after this.
+            if (jumpCount >= 2 && self.slideCounter == 1 && self.standing && self.bodyMode == Player.BodyModeIndex.Stand)
+                bypassTurnCheck = true;
+            else if (jumpCount >= 2 && self.slideCounter >= 10 && self.slideCounter <= 20 && self.standing && self.bodyMode == Player.BodyModeIndex.Stand)
+                bypassTurnCheck = true;
+
+            orig(self);
+
+            if (bypassTurnCheck || (self.slideCounter >= 10 && self.slideCounter <= 20 && self.standing && self.bodyMode == Player.BodyModeIndex.Stand))
+            {
+                //Overwrite jumpBoost value
+                self.jumpBoost -= 1.5f * jumpCount;
+                //Custom amount
+                if (jumpCount == 1)
+                    self.jumpBoost += SlugcatScootsConfigOptions.middleJumpBoost.Value;
+                else if (jumpCount == 2)
+                    self.jumpBoost += SlugcatScootsConfigOptions.flipJumpBoost.Value;
+            }
+            
+
+           
+        }
+
+        #endregion
 
         private void Player_UpdateBodyMode(ILContext il)
         {
@@ -68,8 +184,8 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
-                player.bodyChunks[0].vel.y += SlugcatScootsConfigOptions.corridorBoost.Value;
-                player.bodyChunks[1].vel.y += SlugcatScootsConfigOptions.corridorBoost.Value;
+                player.bodyChunks[0].vel.y += SlugcatScootsConfigOptions.corridorBoostForce.Value;
+                player.bodyChunks[1].vel.y += SlugcatScootsConfigOptions.corridorBoostForce.Value;
             });
             //Vertical failure
             c.GotoNext(MoveType.After,
@@ -80,8 +196,8 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
-                player.bodyChunks[0].vel.y += SlugcatScootsConfigOptions.failedCorridorBoost.Value;
-                player.bodyChunks[1].vel.y += SlugcatScootsConfigOptions.failedCorridorBoost.Value;
+                player.bodyChunks[0].vel.y += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value;
+                player.bodyChunks[1].vel.y += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value;
             });
             //Horizontal success
             c.GotoNext(MoveType.After,
@@ -92,9 +208,9 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
-                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.corridorBoost.Value * 
+                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.corridorBoostForce.Value * 
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
-                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.corridorBoost.Value *
+                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.corridorBoostForce.Value *
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
             });
             //Horizontal failure
@@ -106,9 +222,9 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
-                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.failedCorridorBoost.Value *
+                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value *
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
-                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.failedCorridorBoost.Value *
+                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value *
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
             });
 
@@ -141,7 +257,7 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Pop);
             c.EmitDelegate<Func<int>>(() =>
             {
-                return SlugcatScootsConfigOptions.slideInit.Value;
+                return SlugcatScootsConfigOptions.slideInitDuration.Value;
             }
             );
 
@@ -175,7 +291,7 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup || (player.isGourmand && player.gourmandExhausted))
                     return num;
-                return SlugcatScootsConfigOptions.bellySlide.Value;
+                return SlugcatScootsConfigOptions.slideAcceleration.Value;
             });
 
             c.Emit(OpCodes.Stloc, 25);
@@ -187,7 +303,7 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup || (player.isGourmand && player.gourmandExhausted))
                     return num;
-                return SlugcatScootsConfigOptions.longBellySlide.Value;
+                return SlugcatScootsConfigOptions.extendedSlideAcceleration.Value;
             });
 
             c.Emit(OpCodes.Stloc, 24);
@@ -278,7 +394,7 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Pop);
             c.EmitDelegate<Func<int>>(() =>
             {
-                return SlugcatScootsConfigOptions.rollCount.Value;
+                return SlugcatScootsConfigOptions.rollDuration.Value;
             });
 
             c.GotoNext(MoveType.After,
@@ -290,7 +406,7 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Pop);
             c.EmitDelegate<Func<float>>(() =>
             {
-                return SlugcatScootsConfigOptions.rollCount.Value*2;
+                return SlugcatScootsConfigOptions.rollDuration.Value*2;
             });
 
             c.GotoNext(MoveType.After,
@@ -302,7 +418,7 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Pop);
             c.EmitDelegate<Func<float>>(() =>
             {
-                return SlugcatScootsConfigOptions.rollCount.Value * 4;
+                return SlugcatScootsConfigOptions.rollDuration.Value * 4;
             });
 
             //Roll speed
@@ -334,13 +450,13 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Pop);
             c.EmitDelegate<Func<float>>(() =>
             {
-                return SlugcatScootsConfigOptions.poleBoost.Value;
+                return SlugcatScootsConfigOptions.poleBoostForce.Value;
             });
             c.Index++;
             c.Emit(OpCodes.Pop);
             c.EmitDelegate<Func<float>>(() =>
             {
-                return SlugcatScootsConfigOptions.poleRegression.Value * -1f;
+                return SlugcatScootsConfigOptions.poleBoostRegression.Value * -1f;
             });
 
             //Post-pole boost stun duration
@@ -380,7 +496,7 @@ namespace SlugcatScootsConfig
                     return;
                 float xValue = SlugcatScootsConfigOptions.wallPounceX.Value;
                 float yValue = SlugcatScootsConfigOptions.wallPounceY.Value;
-                float stunValue = SlugcatScootsConfigOptions.wallPounceStun.Value;
+                float stunValue = SlugcatScootsConfigOptions.postWallPounceStun.Value;
                 player.bodyChunks[0].vel = new Vector2((float)direction.x * -xValue, yValue);
                 player.bodyChunks[1].vel = new Vector2((float)direction.x * -xValue, yValue);
                 player.jumpStun = (int)stunValue * -direction.x;
@@ -489,10 +605,6 @@ namespace SlugcatScootsConfig
                 player.jumpBoost = floatValue;
             });
             //*/
-        }
-        private float RemoveArtiDrown(On.Player.orig_PyroDeathThreshold orig, RainWorldGame game)
-        {
-            return 0f;
         }
 
         private GameSession game;
