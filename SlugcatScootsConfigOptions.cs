@@ -53,16 +53,16 @@ namespace SlugcatScootsConfig
         public static readonly Configurable<float> failedCorridorBoostForce = instance.config.Bind<float>("FailedCorridorBoost", 0f, new ConfigAcceptableRange<float>(0f, 40f));
         public static readonly Configurable<int> postCorridorBoostStun = instance.config.Bind<int>("PostCorridorBoostStun", 15, new ConfigAcceptableRange<int>(0, 80));
 
-        public static readonly Configurable<bool> doubleJumpOverTriple = instance.config.Bind<bool>("DoubleJumpOverTriple", false);
-        public static readonly Configurable<float> middleJumpBoost = instance.config.Bind<float>("MiddleJumpBoost", 1.5f, new ConfigAcceptableRange<float>(-10f, 20f));
-        public static readonly Configurable<float> flipJumpBoost = instance.config.Bind<float>("FlipJumpBoost", 3f, new ConfigAcceptableRange<float>(-10f, 20f));
+        public static Configurable<bool> doubleJumpOverTriple = instance.config.Bind<bool>("DoubleJumpOverTriple", false);
+        public static Configurable<float> middleJumpBoost = instance.config.Bind<float>("MiddleJumpBoost", 1.5f, new ConfigAcceptableRange<float>(-10f, 20f));
+        public static Configurable<float> flipJumpBoost = instance.config.Bind<float>("FlipJumpBoost", 3f, new ConfigAcceptableRange<float>(-10f, 20f));
         //*/
 
         private const float labelSpacing = 35f, shortSpacing = 60f, longSpacing = 80f;
         private const float labelX = 28f, sliderX = 40f;
         private const int sliderLength = 400;
 
-        private UIelement[] JumpOptions, WallPounceOptions, SlideOptions, SlideOptions2, RollOptions, BoostOptions, TripleJumpOptions;
+        private UIelement[] JumpOptions, WallPounceOptions, SlideOptions, SlideOptions2, RollOptions, BoostOptions;
         private OpSimpleButton defaultJumps, defaultWallpounce, defaultSlide, defaultRoll, defaultBoosts;
         public override void Initialize()
         {
@@ -252,15 +252,7 @@ namespace SlugcatScootsConfig
             secondHeight = firstHeight - shortSpacing;
             thirdHeight = secondHeight - shortSpacing;
 
-            TripleJumpOptions = new UIelement[]
-            {
-                new OpCheckBox(doubleJumpOverTriple, new Vector2(sliderX, firstHeight - 20)),
-                new OpLabel(sliderX + 28f, firstHeight - 20 + 3, "Flip will happen on second jump (unchecked by default)"),
-                new OpLabel(labelX, secondHeight, "Middle Jump Boost. Default: 1.5"),
-                new OpFloatSlider(middleJumpBoost, new Vector2(sliderX, secondHeight - labelSpacing), sliderLength),
-                new OpLabel(labelX, thirdHeight, "Flip Jump Boost. Default: 3"),
-                new OpFloatSlider(flipJumpBoost, new Vector2(sliderX, thirdHeight - labelSpacing), sliderLength)
-            };
+            
 
             if (SlugcatScootsConfigMod.hasTripleJump)
                 this.Tabs = new[]
@@ -291,7 +283,18 @@ namespace SlugcatScootsConfig
             rollTab.AddItems(RollOptions);
             boostTab.AddItems(BoostOptions);
             if (SlugcatScootsConfigMod.hasTripleJump)
-                tripleJumpTab.AddItems(TripleJumpOptions);
+            {
+                UIelement[] tripleJumpOptions = new UIelement[]
+                {
+                    new OpCheckBox(doubleJumpOverTriple, new Vector2(sliderX, firstHeight - 20)),
+                    new OpLabel(sliderX + 28f, firstHeight - 20 + 3, "Flip will happen on second jump (unchecked by default)"),
+                    new OpLabel(labelX, secondHeight, "Middle Jump Boost. Default: 1.5"),
+                    new OpFloatSlider(middleJumpBoost, new Vector2(sliderX, secondHeight - labelSpacing), sliderLength),
+                    new OpLabel(labelX, thirdHeight, "Flip Jump Boost. Default: 3"),
+                    new OpFloatSlider(flipJumpBoost, new Vector2(sliderX, thirdHeight - labelSpacing), sliderLength)
+                };
+                tripleJumpTab.AddItems(tripleJumpOptions);
+            }
 
         }
 

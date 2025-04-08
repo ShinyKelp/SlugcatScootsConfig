@@ -9,9 +9,9 @@ using MoreSlugcats;
 using RWCustom;
 using UnityEngine;
 using System.Reflection;
-using CommonServiceLocator;
 using BepInEx.Bootstrap;
 using System.Collections.Generic;
+using TripleJump;
 
 #pragma warning disable CS0618
 
@@ -21,13 +21,12 @@ using System.Collections.Generic;
 namespace SlugcatScootsConfig
 {
 
-    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.1")]
+    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.2")]
     public partial class SlugcatScootsConfigMod : BaseUnityPlugin
     {
         public static bool hasTripleJump = false;
-        TripleJump.AttachedField<Player, int> _jumpCount;
-        HashSet<Player> playersToSkipJump;
-
+        HashSet<Player> playersToSkipJump = null;
+        System.Collections.IDictionary _jumpCountDict;
         private void OnEnable()
         {
             On.RainWorld.OnModsInit += RainWorldOnOnModsInit;
@@ -39,15 +38,15 @@ namespace SlugcatScootsConfig
             orig(self);
             if (hasTripleJump)
             {
-                Debug.Log("Attempting JumpCount search...");
-                GetJumpCountInstance();
-                playersToSkipJump = new HashSet<Player>();
+                if(_jumpCountDict is null)
+                    GetJumpCountInstance();
             }
         }
 
         private bool IsInit;
         private void RainWorldOnOnModsInit(On.RainWorld.orig_OnModsInit orig, RainWorld self)
         {
+            UnityEngine.Debug.Log("Initializing Slugcat Scoots Config.");
             orig(self);
             try
             {
@@ -69,20 +68,16 @@ namespace SlugcatScootsConfig
                 {
                     if(mod.name == "Triple Jump")
                     {
-                        Debug.Log("Slugcat Scoots Config detected Triple Jump.");
                         hasTripleJump = true;
-                        //GetJumpCountInstance();
-                        //Debug.Log("JumpCount instance: " + _jumpCount);
+                        GetJumpCountInstance();
+                        playersToSkipJump = new HashSet<Player>();
                         break;
                     }
                 }
-
                 MachineConnector.SetRegisteredOI("ShinyKelp.SlugcatScootsConfig", SlugcatScootsConfigOptions.instance);
 
-
-
                 IsInit = true;
-                Debug.Log("Slugcat Scoots Config Initialized successfully!");
+                UnityEngine.Debug.Log("Slugcat Scoots Config Initialized successfully!");
             }
             catch (Exception ex)
             {
@@ -103,7 +98,7 @@ namespace SlugcatScootsConfig
             if (playersToSkipJump.Contains(self))
             {
                 //Literally impossible to change jumpCount within Player.Jump call; must be done elsewhere.
-                _jumpCount.Set(self, 2);
+                _jumpCountDict[self] = 2;
                 playersToSkipJump.Remove(self);
             }
         }
@@ -116,10 +111,16 @@ namespace SlugcatScootsConfig
             {
                 if (plugin.Metadata.GUID == "triplejump")
                 {
-                    Debug.Log("Found JumpCount reference successfully.");
                     BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-                    _jumpCount = (plugin.Instance.GetType().GetField("_jumpCount", flags).GetValue(plugin.Instance) as TripleJump.AttachedField<Player, int>);
-                    Debug.Log("Stored JumpCount reference successfully.");
+                    // Get the AttachedField<Player, int> instance from the plugin
+                    object attachedFieldInstance = plugin.Instance.GetType().GetField("_jumpCount", flags).GetValue(plugin.Instance);
+
+                    // Now get the '_dict' field from that AttachedField instance
+                    FieldInfo dictField = attachedFieldInstance.GetType().GetField("_dict", flags);
+
+                    // Get the dictionary object (assuming it's of a compatible type like Dictionary<Player, int>)
+                    object dictObj = dictField.GetValue(attachedFieldInstance);
+                    _jumpCountDict = dictObj as System.Collections.IDictionary;
                     break;
                 }
             }
@@ -138,7 +139,7 @@ namespace SlugcatScootsConfig
         //Code reads same checks as Triple Jump, modifies player.jumpBoost
         private void CustomTripleJump(On.Player.orig_Jump orig, Player self)
         {
-            int jumpCount = _jumpCount.Get(self);
+            int jumpCount = (int)_jumpCountDict[self];
             bool bypassTurnCheck = false;
 
             //If true, second jump will be flip
@@ -164,7 +165,7 @@ namespace SlugcatScootsConfig
                     self.jumpBoost += SlugcatScootsConfigOptions.flipJumpBoost.Value;
             }
             
-
+            
            
         }
 
@@ -275,26 +276,15 @@ namespace SlugcatScootsConfig
             );
 
             //Slide acceleration
+            //Go to slide animation -> if slugpup section, then exit the if and modify the local variable
             c.Index = 0;
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcR4(7),
-                x => x.MatchStloc(24),
+                x => x.MatchStloc(23),
                 x => x.MatchLdcR4(9),
-                x => x.MatchStloc(25),
+                x => x.MatchStloc(24),
                 x => x.MatchLdarg(0)
             );
-
-            c.Emit(OpCodes.Ldarg_0);
-            c.Emit(OpCodes.Ldloc, 25);
-
-            c.EmitDelegate<Func<Player, float, float>>((player, num) =>
-            {
-                if (player.isSlugpup || (player.isGourmand && player.gourmandExhausted))
-                    return num;
-                return SlugcatScootsConfigOptions.slideAcceleration.Value;
-            });
-
-            c.Emit(OpCodes.Stloc, 25);
 
             c.Emit(OpCodes.Ldarg_0);
             c.Emit(OpCodes.Ldloc, 24);
@@ -303,13 +293,26 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup || (player.isGourmand && player.gourmandExhausted))
                     return num;
-                return SlugcatScootsConfigOptions.extendedSlideAcceleration.Value;
+                return SlugcatScootsConfigOptions.slideAcceleration.Value;
             });
 
             c.Emit(OpCodes.Stloc, 24);
 
+            c.Emit(OpCodes.Ldarg_0);
+            c.Emit(OpCodes.Ldloc, 23);
+
+            c.EmitDelegate<Func<Player, float, float>>((player, num) =>
+            {
+                if (player.isSlugpup || (player.isGourmand && player.gourmandExhausted))
+                    return num;
+                return SlugcatScootsConfigOptions.extendedSlideAcceleration.Value;
+            });
+
+            c.Emit(OpCodes.Stloc, 23);
+
             //Slide duration (adjustment of the sin movement function)
             //(it's right after setting the acceleration values, index is not reset for convenience)
+
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcR4(15f)
                 );
@@ -331,9 +334,9 @@ namespace SlugcatScootsConfig
             c.Index = 0;
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcI4(6),
-                x => x.MatchStloc(26),
+                x => x.MatchStloc(27),
                 x => x.MatchLdcI4(20),
-                x => x.MatchStloc(27)
+                x => x.MatchStloc(28)
             );
             c.Index++;
 
@@ -341,12 +344,12 @@ namespace SlugcatScootsConfig
             {
                 return SlugcatScootsConfigOptions.slidePounceWindow.Value;
             });
-            c.Emit(OpCodes.Stloc, 26);
+            c.Emit(OpCodes.Stloc, 27);
             c.EmitDelegate<Func<int>>(() =>
             {
                 return SlugcatScootsConfigOptions.extendedSlidePounceWindow.Value;
             });
-            c.Emit(OpCodes.Stloc, 27);
+            c.Emit(OpCodes.Stloc, 28);
 
             //Slide duration (is in same IF statement of pounce window, index is not reset for convenience).
             c.GotoNext(MoveType.After,
