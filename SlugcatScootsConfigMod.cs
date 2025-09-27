@@ -182,6 +182,7 @@ namespace SlugcatScootsConfig
                 x => x.MatchLdcI4(22),
                 x => x.MatchStfld<Player>("verticalCorridorSlideCounter")
             );
+
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
@@ -228,7 +229,6 @@ namespace SlugcatScootsConfig
                 player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value *
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
             });
-
             //Post-boost stun
             c.GotoNext(MoveType.After,
                 x => x.MatchLdarg(0),
@@ -280,14 +280,14 @@ namespace SlugcatScootsConfig
             c.Index = 0;
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcR4(7),
-                x => x.MatchStloc(23),
+                x => x.MatchStloc(25),
                 x => x.MatchLdcR4(9),
-                x => x.MatchStloc(24),
+                x => x.MatchStloc(26),
                 x => x.MatchLdarg(0)
             );
 
             c.Emit(OpCodes.Ldarg_0);
-            c.Emit(OpCodes.Ldloc, 24);
+            c.Emit(OpCodes.Ldloc, 26);
 
             c.EmitDelegate<Func<Player, float, float>>((player, num) =>
             {
@@ -296,10 +296,10 @@ namespace SlugcatScootsConfig
                 return SlugcatScootsConfigOptions.slideAcceleration.Value;
             });
 
-            c.Emit(OpCodes.Stloc, 24);
+            c.Emit(OpCodes.Stloc, 26);
 
             c.Emit(OpCodes.Ldarg_0);
-            c.Emit(OpCodes.Ldloc, 23);
+            c.Emit(OpCodes.Ldloc, 25);
 
             c.EmitDelegate<Func<Player, float, float>>((player, num) =>
             {
@@ -308,7 +308,7 @@ namespace SlugcatScootsConfig
                 return SlugcatScootsConfigOptions.extendedSlideAcceleration.Value;
             });
 
-            c.Emit(OpCodes.Stloc, 23);
+            c.Emit(OpCodes.Stloc, 25);
 
             //Slide duration (adjustment of the sin movement function)
             //(it's right after setting the acceleration values, index is not reset for convenience)
@@ -334,9 +334,9 @@ namespace SlugcatScootsConfig
             c.Index = 0;
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcI4(6),
-                x => x.MatchStloc(27),
+                x => x.MatchStloc(31),
                 x => x.MatchLdcI4(20),
-                x => x.MatchStloc(28)
+                x => x.MatchStloc(32)
             );
             c.Index++;
 
@@ -344,12 +344,12 @@ namespace SlugcatScootsConfig
             {
                 return SlugcatScootsConfigOptions.slidePounceWindow.Value;
             });
-            c.Emit(OpCodes.Stloc, 27);
+            c.Emit(OpCodes.Stloc, 31);
             c.EmitDelegate<Func<int>>(() =>
             {
                 return SlugcatScootsConfigOptions.extendedSlidePounceWindow.Value;
             });
-            c.Emit(OpCodes.Stloc, 28);
+            c.Emit(OpCodes.Stloc, 32);
 
             //Slide duration (is in same IF statement of pounce window, index is not reset for convenience).
             c.GotoNext(MoveType.After,
@@ -427,7 +427,7 @@ namespace SlugcatScootsConfig
             //Roll speed
             c.Index = 0;
             c.GotoNext(MoveType.After,
-                x => x.MatchStloc(18)
+                x => x.MatchStloc(20)       //bool flag local
             );
 
             c.Emit(OpCodes.Ldarg_0);
@@ -475,10 +475,12 @@ namespace SlugcatScootsConfig
             {
                 return SlugcatScootsConfigOptions.postPoleBoostStun.Value;
             });
+
         }
 
         private void Player_TerrainImpact(ILContext il)
         {
+
             ILCursor c = new ILCursor(il);
             //Wallpounce
             c.GotoNext(MoveType.After,
@@ -504,7 +506,6 @@ namespace SlugcatScootsConfig
                 player.bodyChunks[1].vel = new Vector2((float)direction.x * -xValue, yValue);
                 player.jumpStun = (int)stunValue * -direction.x;
             });
-
         }
 
         private void Player_Jump(ILContext il)
@@ -557,7 +558,6 @@ namespace SlugcatScootsConfig
                 player.bodyChunks[0].vel = new Vector2((float)player.rollDirection * xValue, yValue) * num * (player.longBellySlide ? 1.2f : 1f);
             });
 
-
             //Whiplash pounce
             c.Index = 0;
             c.GotoNext(MoveType.After,
@@ -583,7 +583,6 @@ namespace SlugcatScootsConfig
                 player.bodyChunks[1].vel = new Vector2((float)player.rollDirection * xValue, yValue+1);
             });
 
-            
             //Backflip
             c.GotoNext(MoveType.After,
                 x => x.MatchLdarg(0),
