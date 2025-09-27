@@ -21,7 +21,7 @@ using TripleJump;
 namespace SlugcatScootsConfig
 {
 
-    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.3")]
+    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.4")]
     public partial class SlugcatScootsConfigMod : BaseUnityPlugin
     {
         public static bool hasTripleJump = false;
