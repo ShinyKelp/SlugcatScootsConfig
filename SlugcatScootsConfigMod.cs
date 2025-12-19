@@ -21,7 +21,7 @@ using TripleJump;
 namespace SlugcatScootsConfig
 {
 
-    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.4")]
+    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.5")]
     public partial class SlugcatScootsConfigMod : BaseUnityPlugin
     {
         public static bool hasTripleJump = false;
@@ -248,6 +248,8 @@ namespace SlugcatScootsConfig
         {
             ILCursor c = new ILCursor(il);
 
+            int lvib = 20;   //Local variable index base. If new variables shift the index of previous variables, increase this accordingly.
+
             //Slide initial animation duration
             c.GotoNext(MoveType.After,
                 x => x.MatchLdarg(0),
@@ -261,7 +263,6 @@ namespace SlugcatScootsConfig
                 return SlugcatScootsConfigOptions.slideInitDuration.Value;
             }
             );
-
             //Slide initial animation pushback
             //(it is very close after the duration, so index is not reset for convenience)
 
@@ -280,14 +281,14 @@ namespace SlugcatScootsConfig
             c.Index = 0;
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcR4(7),
-                x => x.MatchStloc(25),
+                x => x.MatchStloc(lvib+6),
                 x => x.MatchLdcR4(9),
-                x => x.MatchStloc(26),
+                x => x.MatchStloc(lvib+7),
                 x => x.MatchLdarg(0)
             );
 
             c.Emit(OpCodes.Ldarg_0);
-            c.Emit(OpCodes.Ldloc, 26);
+            c.Emit(OpCodes.Ldloc, lvib+7);
 
             c.EmitDelegate<Func<Player, float, float>>((player, num) =>
             {
@@ -296,10 +297,10 @@ namespace SlugcatScootsConfig
                 return SlugcatScootsConfigOptions.slideAcceleration.Value;
             });
 
-            c.Emit(OpCodes.Stloc, 26);
+            c.Emit(OpCodes.Stloc, lvib + 7);
 
             c.Emit(OpCodes.Ldarg_0);
-            c.Emit(OpCodes.Ldloc, 25);
+            c.Emit(OpCodes.Ldloc, lvib + 6);
 
             c.EmitDelegate<Func<Player, float, float>>((player, num) =>
             {
@@ -308,7 +309,7 @@ namespace SlugcatScootsConfig
                 return SlugcatScootsConfigOptions.extendedSlideAcceleration.Value;
             });
 
-            c.Emit(OpCodes.Stloc, 25);
+            c.Emit(OpCodes.Stloc, lvib + 6);
 
             //Slide duration (adjustment of the sin movement function)
             //(it's right after setting the acceleration values, index is not reset for convenience)
@@ -334,9 +335,9 @@ namespace SlugcatScootsConfig
             c.Index = 0;
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcI4(6),
-                x => x.MatchStloc(31),
+                x => x.MatchStloc(lvib + 12),
                 x => x.MatchLdcI4(20),
-                x => x.MatchStloc(32)
+                x => x.MatchStloc(lvib + 13)
             );
             c.Index++;
 
@@ -344,12 +345,12 @@ namespace SlugcatScootsConfig
             {
                 return SlugcatScootsConfigOptions.slidePounceWindow.Value;
             });
-            c.Emit(OpCodes.Stloc, 31);
+            c.Emit(OpCodes.Stloc, lvib + 12);
             c.EmitDelegate<Func<int>>(() =>
             {
                 return SlugcatScootsConfigOptions.extendedSlidePounceWindow.Value;
             });
-            c.Emit(OpCodes.Stloc, 32);
+            c.Emit(OpCodes.Stloc, lvib + 13);
 
             //Slide duration (is in same IF statement of pounce window, index is not reset for convenience).
             c.GotoNext(MoveType.After,
@@ -424,10 +425,9 @@ namespace SlugcatScootsConfig
                 return SlugcatScootsConfigOptions.rollDuration.Value * 4;
             });
 
-            //Roll speed
             c.Index = 0;
             c.GotoNext(MoveType.After,
-                x => x.MatchStloc(20)       //bool flag local
+                x => x.MatchStloc(lvib + 1)
             );
 
             c.Emit(OpCodes.Ldarg_0);
