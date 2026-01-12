@@ -20,8 +20,9 @@ using TripleJump;
 
 namespace SlugcatScootsConfig
 {
+    using Bindings = SlugcatScootsConfigOptions;
 
-    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "1.1.5")]
+    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "2.0.0")]
     public partial class SlugcatScootsConfigMod : BaseUnityPlugin
     {
         public static bool hasTripleJump = false;
@@ -32,6 +33,7 @@ namespace SlugcatScootsConfig
             On.RainWorld.OnModsInit += RainWorldOnOnModsInit;
             On.RainWorld.PostModsInit += RainWorld_PostModsInit;
         }
+        bool isActive = false;
 
         private void RainWorld_PostModsInit(On.RainWorld.orig_PostModsInit orig, RainWorld self)
         {
@@ -143,7 +145,7 @@ namespace SlugcatScootsConfig
             bool bypassTurnCheck = false;
 
             //If true, second jump will be flip
-            if (SlugcatScootsConfigOptions.doubleJumpOverTriple.Value && jumpCount == 0 && self.slideCounter >= 10 && self.slideCounter <= 20 && self.standing && self.bodyMode == Player.BodyModeIndex.Stand)
+            if (Bindings.doubleJumpOverTriple.Value && jumpCount == 0 && self.slideCounter >= 10 && self.slideCounter <= 20 && self.standing && self.bodyMode == Player.BodyModeIndex.Stand)
                 playersToSkipJump.Add(self);
 
             //Checks wether TripleJump's call was done before or after this.
@@ -160,9 +162,19 @@ namespace SlugcatScootsConfig
                 self.jumpBoost -= 1.5f * jumpCount;
                 //Custom amount
                 if (jumpCount == 1)
-                    self.jumpBoost += SlugcatScootsConfigOptions.middleJumpBoost.Value;
+                {
+                    if (Bindings.middleJumpBoost.Value < -10f)
+                        self.jumpBoost += 1.5f;
+                    else
+                        self.jumpBoost += Bindings.middleJumpBoost.Value;
+                }
                 else if (jumpCount == 2)
-                    self.jumpBoost += SlugcatScootsConfigOptions.flipJumpBoost.Value;
+                {
+                    if (Bindings.flipJumpBoost.Value < -10f)
+                        self.jumpBoost += 3f;
+                    else
+                        self.jumpBoost += Bindings.flipJumpBoost.Value;
+                }
             }
             
             
@@ -186,8 +198,10 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
-                player.bodyChunks[0].vel.y += SlugcatScootsConfigOptions.corridorBoostForce.Value;
-                player.bodyChunks[1].vel.y += SlugcatScootsConfigOptions.corridorBoostForce.Value;
+                if (Bindings.corridorBoostForce.Value < 0f)
+                    return;
+                player.bodyChunks[0].vel.y += Bindings.corridorBoostForce.Value;
+                player.bodyChunks[1].vel.y += Bindings.corridorBoostForce.Value;
             });
             //Vertical failure
             c.GotoNext(MoveType.After,
@@ -198,8 +212,10 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
-                player.bodyChunks[0].vel.y += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value;
-                player.bodyChunks[1].vel.y += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value;
+                if (Bindings.failedCorridorBoostForce.Value < 0f)
+                    return;
+                player.bodyChunks[0].vel.y += Bindings.failedCorridorBoostForce.Value;
+                player.bodyChunks[1].vel.y += Bindings.failedCorridorBoostForce.Value;
             });
             //Horizontal success
             c.GotoNext(MoveType.After,
@@ -210,9 +226,11 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
-                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.corridorBoostForce.Value * 
+                if (Bindings.corridorBoostForce.Value < 0f)
+                    return;
+                player.bodyChunks[0].vel.x += Bindings.corridorBoostForce.Value * 
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
-                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.corridorBoostForce.Value *
+                player.bodyChunks[1].vel.x += Bindings.corridorBoostForce.Value *
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
             });
             //Horizontal failure
@@ -224,9 +242,11 @@ namespace SlugcatScootsConfig
             c.Emit(OpCodes.Ldarg_0);
             c.EmitDelegate<Action<Player>>((player) =>
             {
-                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value *
+                if (Bindings.failedCorridorBoostForce.Value < 0f)
+                    return;
+                player.bodyChunks[0].vel.x += Bindings.failedCorridorBoostForce.Value *
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
-                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.failedCorridorBoostForce.Value *
+                player.bodyChunks[1].vel.x += Bindings.failedCorridorBoostForce.Value *
                 (player.bodyChunks[0].pos.x > player.bodyChunks[1].pos.x ? 1f : -1f);
             });
             //Post-boost stun
@@ -237,10 +257,12 @@ namespace SlugcatScootsConfig
                 x => x.MatchLdcR4(0f)
             );
             c.Index -= 2;
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate <Func<int>>(() =>
+            c.EmitDelegate <Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.postCorridorBoostStun.Value;
+                if (Bindings.postCorridorBoostStun.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.postCorridorBoostStun.Value;
             });
         }
 
@@ -257,10 +279,12 @@ namespace SlugcatScootsConfig
                 x => x.MatchLdcI4(6)
             );
 
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<int>>(() =>
+            c.EmitDelegate<Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.slideInitDuration.Value;
+                if (Bindings.slideInitDuration.Value == -1)
+                    return orig;
+                else
+                    return Bindings.slideInitDuration.Value;
             }
             );
             //Slide initial animation pushback
@@ -269,10 +293,12 @@ namespace SlugcatScootsConfig
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcR4(9.1f)
             );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<float>>(() =>
+            c.EmitDelegate<Func<float, float>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.slideInitPushback.Value;
+                if (Bindings.slideInitPushback.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.slideInitPushback.Value;
             }
             );
 
@@ -294,11 +320,15 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup || (player.isGourmand && player.gourmandExhausted))
                     return num;
-                return SlugcatScootsConfigOptions.slideAcceleration.Value;
+                if (Bindings.slideAcceleration.Value < 0f)
+                    return num;
+                else
+                    return Bindings.slideAcceleration.Value;
             });
 
             c.Emit(OpCodes.Stloc, lvib + 7);
 
+            //Extended slide
             c.Emit(OpCodes.Ldarg_0);
             c.Emit(OpCodes.Ldloc, lvib + 6);
 
@@ -306,7 +336,9 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup || (player.isGourmand && player.gourmandExhausted))
                     return num;
-                return SlugcatScootsConfigOptions.extendedSlideAcceleration.Value;
+                if (Bindings.extendedSlideAcceleration.Value < 0f)
+                    return num;
+                return Bindings.extendedSlideAcceleration.Value;
             });
 
             c.Emit(OpCodes.Stloc, lvib + 6);
@@ -317,18 +349,22 @@ namespace SlugcatScootsConfig
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcR4(15f)
                 );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<float>>(() =>
+            c.EmitDelegate<Func<float, float>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.slideDuration.Value;
+                if (Bindings.slideDuration.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.slideDuration.Value;
             });
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcR4(39f)
                 );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<float>>(() =>
+            c.EmitDelegate<Func<float, float>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.extendedSlideDuration.Value;
+                if (Bindings.extendedSlideDuration.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.extendedSlideDuration.Value;
             });
 
             //Slide Pounce window
@@ -340,15 +376,23 @@ namespace SlugcatScootsConfig
                 x => x.MatchStloc(lvib + 13)
             );
             c.Index++;
-
-            c.EmitDelegate<Func<int>>(() =>
+            c.Emit(OpCodes.Ldloc, lvib + 12);
+            c.EmitDelegate<Func<int,int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.slidePounceWindow.Value;
+                if(Bindings.slidePounceWindow.Value < 0f) 
+                    return orig;
+                else
+                    return Bindings.slidePounceWindow.Value;
             });
             c.Emit(OpCodes.Stloc, lvib + 12);
-            c.EmitDelegate<Func<int>>(() =>
+
+            c.Emit(OpCodes.Ldloc, lvib + 13);
+            c.EmitDelegate<Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.extendedSlidePounceWindow.Value;
+                if (Bindings.extendedSlidePounceWindow.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.extendedSlidePounceWindow.Value;
             });
             c.Emit(OpCodes.Stloc, lvib + 13);
 
@@ -356,36 +400,44 @@ namespace SlugcatScootsConfig
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcI4(15)
                 );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<int>>(() =>
+            c.EmitDelegate<Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.slideDuration.Value;
+                if (Bindings.slideDuration.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.slideDuration.Value;
             });
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcI4(39)
                 );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<int>>(() =>
+            c.EmitDelegate<Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.extendedSlideDuration.Value;
+                if (Bindings.extendedSlideDuration.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.extendedSlideDuration.Value;
             });
 
             //Slide post-stun (slightly after duration)
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcI4(40)
             );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<int>>(() =>
+            c.EmitDelegate<Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.postSlideStun.Value;
+                if (Bindings.postSlideStun.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.postSlideStun.Value;
             });
             c.GotoNext(MoveType.After,
                 x => x.MatchLdcI4(20)
             );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<int>>(() =>
+            c.EmitDelegate<Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.standingPostSlideStun.Value;
+                if (Bindings.standingPostSlideStun.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.standingPostSlideStun.Value;
             });
 
             //Roll duration
@@ -395,10 +447,12 @@ namespace SlugcatScootsConfig
                 x => x.MatchLdfld<Player>("rollCounter"),
                 x => x.MatchLdcI4(15)
             );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<int>>(() =>
+            c.EmitDelegate<Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.rollDuration.Value;
+                if (Bindings.rollDuration.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.rollDuration.Value;
             });
 
             c.GotoNext(MoveType.After,
@@ -407,10 +461,12 @@ namespace SlugcatScootsConfig
                 x => x.MatchConvR4(),
                 x => x.MatchLdcR4(30f)
             );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<float>>(() =>
+            c.EmitDelegate<Func<float, float>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.rollDuration.Value*2;
+                if (Bindings.rollDuration.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.rollDuration.Value*2;
             });
 
             c.GotoNext(MoveType.After,
@@ -419,10 +475,12 @@ namespace SlugcatScootsConfig
                x => x.MatchConvR4(),
                x => x.MatchLdcR4(60f)
            );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<float>>(() =>
+            c.EmitDelegate<Func<float, float>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.rollDuration.Value * 4;
+                if (Bindings.rollDuration.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.rollDuration.Value * 4;
             });
 
             c.Index = 0;
@@ -435,8 +493,10 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup)
                     return;
-                player.bodyChunks[0].vel.x += SlugcatScootsConfigOptions.rollSpeed.Value * (float)player.rollDirection;
-                player.bodyChunks[1].vel.x += SlugcatScootsConfigOptions.rollSpeed.Value * (float)player.rollDirection;
+                if (Bindings.rollSpeed.Value < 0f)
+                    return;
+                player.bodyChunks[0].vel.x += Bindings.rollSpeed.Value * (float)player.rollDirection;
+                player.bodyChunks[1].vel.x += Bindings.rollSpeed.Value * (float)player.rollDirection;
             });
 
             //Pole boost and regression
@@ -450,16 +510,20 @@ namespace SlugcatScootsConfig
                 x => x.MatchLdcR4(0.45f)
             );
             c.Index -= 2;
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<float>>(() =>
+            c.EmitDelegate<Func<float, float>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.poleBoostForce.Value;
+                if (Bindings.poleBoostForce.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.poleBoostForce.Value;
             });
             c.Index++;
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<float>>(() =>
+            c.EmitDelegate<Func<float, float>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.poleBoostRegression.Value * -1f;
+                if (Bindings.poleBoostRegression.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.poleBoostRegression.Value * -1f;
             });
 
             //Post-pole boost stun duration
@@ -470,10 +534,12 @@ namespace SlugcatScootsConfig
                 x => x.MatchLdfld<Player>("slowMovementStun"),
                 x => x.MatchLdcI4(16)
             );
-            c.Emit(OpCodes.Pop);
-            c.EmitDelegate<Func<int>>(() =>
+            c.EmitDelegate<Func<int, int>>((orig) =>
             {
-                return SlugcatScootsConfigOptions.postPoleBoostStun.Value;
+                if (Bindings.postPoleBoostStun.Value < 0f)
+                    return orig;
+                else
+                    return Bindings.postPoleBoostStun.Value;
             });
 
         }
@@ -499,12 +565,16 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup)
                     return;
-                float xValue = SlugcatScootsConfigOptions.wallPounceX.Value;
-                float yValue = SlugcatScootsConfigOptions.wallPounceY.Value;
-                float stunValue = SlugcatScootsConfigOptions.postWallPounceStun.Value;
-                player.bodyChunks[0].vel = new Vector2((float)direction.x * -xValue, yValue);
-                player.bodyChunks[1].vel = new Vector2((float)direction.x * -xValue, yValue);
-                player.jumpStun = (int)stunValue * -direction.x;
+                float xValue = Bindings.wallPounceX.Value;
+                float yValue = Bindings.wallPounceY.Value;
+                float stunValue = Bindings.postWallPounceStun.Value;
+                if(xValue >= 0f && yValue >= 0f)
+                {
+                    player.bodyChunks[0].vel = new Vector2((float)direction.x * -xValue, yValue);
+                    player.bodyChunks[1].vel = new Vector2((float)direction.x * -xValue, yValue);
+                }
+                if(stunValue >= 0f)
+                    player.jumpStun = (int)stunValue * -direction.x;
             });
         }
 
@@ -528,11 +598,16 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup)
                     return;
-                player.bodyChunks[0].vel.y *= SlugcatScootsConfigOptions.rollPounceMultiplierY.Value;
-                player.bodyChunks[1].vel.y *= SlugcatScootsConfigOptions.rollPounceMultiplierY.Value;
-                player.bodyChunks[0].vel.x *= SlugcatScootsConfigOptions.rollPounceMultiplierX.Value;
-                player.bodyChunks[1].vel.x *= SlugcatScootsConfigOptions.rollPounceMultiplierX.Value;
-
+                if(Bindings.rollPounceMultiplierY.Value >= 0f)
+                {
+                    player.bodyChunks[0].vel.y *= Bindings.rollPounceMultiplierY.Value;
+                    player.bodyChunks[1].vel.y *= Bindings.rollPounceMultiplierY.Value;
+                }
+                if(Bindings.rollPounceMultiplierX.Value >= 0f)
+                {
+                    player.bodyChunks[0].vel.x *= Bindings.rollPounceMultiplierX.Value;
+                    player.bodyChunks[1].vel.x *= Bindings.rollPounceMultiplierX.Value;
+                }
             });
 
             //Belly slide config
@@ -552,8 +627,10 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup)
                     return;
-                float xValue = SlugcatScootsConfigOptions.slidePounceX.Value;
-                float yValue = SlugcatScootsConfigOptions.slidePounceY.Value;
+                float xValue = Bindings.slidePounceX.Value;
+                float yValue = Bindings.slidePounceY.Value;
+                if (xValue < 0f || yValue < 0f)
+                    return;
                 player.bodyChunks[1].vel = new Vector2((float)player.rollDirection * xValue, yValue) * num * (player.longBellySlide ? 1.2f : 1f);
                 player.bodyChunks[0].vel = new Vector2((float)player.rollDirection * xValue, yValue) * num * (player.longBellySlide ? 1.2f : 1f);
             });
@@ -577,8 +654,10 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup)
                     return;
-                float xValue = SlugcatScootsConfigOptions.whiplashX.Value;
-                float yValue = SlugcatScootsConfigOptions.whiplashY.Value;
+                float xValue = Bindings.whiplashX.Value;
+                float yValue = Bindings.whiplashY.Value;
+                if (xValue < 0f || yValue < 0f)
+                    return;
                 player.bodyChunks[0].vel = new Vector2((float)player.rollDirection * xValue, yValue);
                 player.bodyChunks[1].vel = new Vector2((float)player.rollDirection * xValue, yValue+1);
             });
@@ -600,11 +679,15 @@ namespace SlugcatScootsConfig
             {
                 if (player.isSlugpup || player.PainJumps)
                     return;
-                float jumpValue = SlugcatScootsConfigOptions.backflip.Value;
-                float floatValue = SlugcatScootsConfigOptions.backflipFloat.Value;
-                player.bodyChunks[0].vel.y = (jumpValue+2) * num;
-                player.bodyChunks[1].vel.y = jumpValue * num;
-                player.jumpBoost = floatValue;
+                float jumpValue = Bindings.backflip.Value;
+                float floatValue = Bindings.backflipFloat.Value;
+                if(jumpValue >= 0f)
+                {
+                    player.bodyChunks[0].vel.y = (jumpValue + 2) * num;
+                    player.bodyChunks[1].vel.y = jumpValue * num;
+                }
+                if(floatValue >= 0f)
+                    player.jumpBoost = floatValue;
             });
             //*/
         }
