@@ -114,9 +114,9 @@ namespace SlugcatScootsConfig
 
             Vector2 presetsPos = new Vector2(220, 435);
 
-            presetsComboBox = new OpComboBox(comboBoxConfig, presetsPos, 90, boxList);
+            presetsComboBox = new OpComboBox(comboBoxConfig, presetsPos, 130, boxList);
             presetsPos.y += 32;
-            presetText = new OpTextBox(presetTextConfig, presetsPos, 90f);
+            presetText = new OpTextBox(presetTextConfig, presetsPos, 130f);
 
             presetsPos.x -= 95f;
             presetsPos.y -= 2f;
@@ -132,8 +132,7 @@ namespace SlugcatScootsConfig
                 description = "Load selected preset"
             };
 
-            presetsPos.y += 16;
-            presetsPos.x += 204;
+            presetsPos.x += 234;
             removePresetButton = new OpSimpleButton(presetsPos, new Vector2(108, 30), "REMOVE PRESET")
             {
                 description = "Remove selected preset"
