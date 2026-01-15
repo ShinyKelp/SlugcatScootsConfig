@@ -22,7 +22,7 @@ namespace SlugcatScootsConfig
 {
     using Bindings = SlugcatScootsConfigOptions;
 
-    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "2.0.0")]
+    [BepInPlugin("ShinyKelp.SlugcatScootsConfig", "Slugcat Scoots Config", "2.0.1")]
     public partial class SlugcatScootsConfigMod : BaseUnityPlugin
     {
         public static bool hasTripleJump = false;
@@ -63,6 +63,7 @@ namespace SlugcatScootsConfig
                 IL.Player.UpdateBodyMode += Player_UpdateBodyMode;
                 IL.Player.Jump += Player_Jump;
                 IL.Player.TerrainImpact += Player_TerrainImpact;
+                IL.PlayerGraphics.Update += PlayerGraphics_Update;
 
                 hasTripleJump = false;
 
@@ -182,6 +183,25 @@ namespace SlugcatScootsConfig
         }
 
         #endregion
+
+        private void PlayerGraphics_Update(ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+
+            //Make 'butt up' animation sync up with actual crouch charge duration
+
+            c.Index = 0;
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdfld<Player>("superLaunchJump"),
+                x => x.MatchLdcI4(19));
+            c.EmitDelegate<Func<int, int>>((orig) =>
+            {
+                if (Bindings.crouchJumpDuration.Value < 0)
+                    return orig;
+                else
+                    return Bindings.crouchJumpDuration.Value - 1;
+            });
+        }
 
         private void Player_UpdateBodyMode(ILContext il)
         {
@@ -690,6 +710,59 @@ namespace SlugcatScootsConfig
                     player.jumpBoost = floatValue;
             });
             //*/
+
+            //Crouch jump
+
+            c.Index = 0;
+            //Duration
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdfld<Player>("superLaunchJump"),
+                x => x.MatchLdcI4(20),
+                x => x.MatchBlt(out _)
+                );
+            c.Index--;
+
+            c.EmitDelegate<Func<int, int>>((orig) =>
+            {
+                if (Bindings.crouchJumpDuration.Value < 0)
+                    return orig;
+                else
+                    return Bindings.crouchJumpDuration.Value;
+            });
+
+
+            //Horizontal leap
+            c.GotoNext(MoveType.After,
+                x => x.MatchLdcI4(6),
+                x => x.MatchStfld<Player>("simulateHoldJumpButton")
+                );
+            c.Index--;
+
+            c.Emit(OpCodes.Ldarg_0);
+            c.Emit(OpCodes.Ldloc, 15);
+
+            c.EmitDelegate<Func<Player, float, float>>((self, orig) =>
+            {
+                if (self.isSlugpup || Bindings.crouchJumpX.Value < 0f)
+                    return orig;
+                else return Bindings.crouchJumpX.Value;
+            });
+            c.Emit(OpCodes.Stloc, 15);
+
+            //Vertical leap
+            c.GotoNext(MoveType.Before,
+                x => x.MatchLdsfld<SoundID>("Slugcat_Crouch_Jump"));
+            c.Index-= 2;
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate<Action<Player>>((self) => 
+            {
+                if (Bindings.crouchJumpY.Value < 0f)
+                    return;
+                float adrenaline = Mathf.Lerp(1f, 1.15f, self.Adrenaline);
+                //Remove the hard-coded addition, replace it with our own.
+                self.bodyChunks[0].vel.y += (Bindings.crouchJumpY.Value * adrenaline - (3f * adrenaline));
+                self.bodyChunks[1].vel.y += ((Bindings.crouchJumpY.Value+1f) * adrenaline - (4f * adrenaline));
+            });
         }
 
         private GameSession game;

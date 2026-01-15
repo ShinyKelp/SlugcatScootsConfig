@@ -25,6 +25,10 @@ namespace SlugcatScootsConfig
         public static readonly Configurable<float> whiplashX = instance.config.Bind<float>("WhiplashX", -1, new ConfigAcceptableRange<float>(-1f, 39f));
         public static readonly Configurable<float> whiplashY = instance.config.Bind<float>("WhiplashY", -1, new ConfigAcceptableRange<float>(-1f, 39f));
 
+        public static readonly Configurable<float> crouchJumpX = instance.config.Bind<float>("CrouchJumpX", -1, new ConfigAcceptableRange<float>(-1f, 39f));
+        public static readonly Configurable<float> crouchJumpY = instance.config.Bind<float>("CrouchJumpY", -1, new ConfigAcceptableRange<float>(-1f, 39f));
+        public static readonly Configurable<int> crouchJumpDuration = instance.config.Bind<int>("CrouchJumpDuration", -1, new ConfigAcceptableRange<int>(-1, 80));
+
         public static readonly Configurable<float> backflip = instance.config.Bind<float>("Backflip", -1f, new ConfigAcceptableRange<float>(-1f, 39f));
         public static readonly Configurable<float> backflipFloat = instance.config.Bind<float>("BackflipFloat", -1f, new ConfigAcceptableRange<float>(-1f, 39f));
 
@@ -67,7 +71,7 @@ namespace SlugcatScootsConfig
         private const float labelX = 28f, sliderX = 40f;
         private const int sliderLength = 400;
 
-        private UIelement[] PresetOptions, JumpOptions, WallPounceOptions, SlideOptions, SlideOptions2, RollOptions, BoostOptions;
+        private UIelement[] PresetOptions, JumpOptions, JumpOptions2, WallPounceOptions, SlideOptions, SlideOptions2, RollOptions, BoostOptions;
         private OpSimpleButton defaultJumps, defaultWallpounce, defaultSlide, defaultRoll, defaultBoosts;
 
         private Configurable<string> comboBoxConfig, presetTextConfig;
@@ -154,6 +158,7 @@ namespace SlugcatScootsConfig
 
             var presetsTab = new OpTab(this, "Presets");
             var jumpTab = new OpTab(this, "Jumps");
+            var jumpTab2 = new OpTab(this, "Jumps2");
             var wallPounceTab = new OpTab(this, "WallPounce");
             var slideTab = new OpTab(this, "Slide");
             var slideTab2 = new OpTab(this, "Slide 2");
@@ -222,6 +227,20 @@ namespace SlugcatScootsConfig
                 defaultJumps
             };
             SaveElementRefs(JumpOptions);
+
+            JumpOptions2 = new UIelement[]
+            {
+                new OpLabel(labelX, firstHeight, "Crouch charge jump X. Normal: 9, Rivulet: 12."),
+                new OpFloatSlider(crouchJumpX, new Vector2(sliderX, firstHeight - labelSpacing), sliderLength),
+                new OpLabel(labelX, firstHeight-shortSpacing, "Crouch charge jump Y. Normal: 3."),
+                new OpFloatSlider(crouchJumpY, new Vector2(sliderX, firstHeight - shortSpacing - labelSpacing), sliderLength),
+                new OpLabel(labelX, firstHeight-shortSpacing*2, "Crouch charge jump duration. Normal: 20."),
+                new OpSlider(crouchJumpDuration, new Vector2(sliderX, firstHeight - shortSpacing*2 - labelSpacing), sliderLength)
+                {
+                    description = "Amount of time to hold the JUMP button to be able to leap.\nIn frames. 1 second = 40 frames."
+                },
+            };
+            SaveElementRefs(JumpOptions2);
 
             SlideOptions = new UIelement[]
             {
@@ -358,6 +377,7 @@ namespace SlugcatScootsConfig
                     {
                         presetsTab,
                         jumpTab,
+                        jumpTab2,
                         slideTab,
                         slideTab2,
                         rollTab,
@@ -370,6 +390,7 @@ namespace SlugcatScootsConfig
                     {
                         presetsTab,
                         jumpTab,
+                        jumpTab2,
                         slideTab,
                         slideTab2,
                         rollTab,
@@ -379,6 +400,7 @@ namespace SlugcatScootsConfig
 
             presetsTab.AddItems(PresetOptions);
             jumpTab.AddItems(JumpOptions);
+            jumpTab2.AddItems(JumpOptions2);
             wallPounceTab.AddItems(WallPounceOptions);
             slideTab.AddItems(SlideOptions);
             slideTab2.AddItems(SlideOptions2);
@@ -409,6 +431,16 @@ namespace SlugcatScootsConfig
                     op.Reset();
                 }
                 else if(JumpOptions[i] is OpFloatSlider opF)
+                {
+                    opF.Reset();
+                }
+
+            for (int i = 0; i < JumpOptions2.Length; i++)
+                if (JumpOptions2[i] is OpSlider op)
+                {
+                    op.Reset();
+                }
+                else if (JumpOptions2[i] is OpFloatSlider opF)
                 {
                     opF.Reset();
                 }
@@ -602,6 +634,9 @@ namespace SlugcatScootsConfig
             SetConfigValue(whiplashY.BoundUIconfig, 10);
             SetConfigValue(backflip.BoundUIconfig, 7);
             SetConfigValue(backflipFloat.BoundUIconfig, 5);
+            SetConfigValue(crouchJumpX.BoundUIconfig, 9);
+            SetConfigValue(crouchJumpY.BoundUIconfig, 3);
+            SetConfigValue(crouchJumpDuration.BoundUIconfig, 20);
             SetConfigValue(slideAcceleration.BoundUIconfig, 18);
             SetConfigValue(extendedSlideAcceleration.BoundUIconfig, 14);
             SetConfigValue(slideDuration.BoundUIconfig, 15);
@@ -635,6 +670,9 @@ namespace SlugcatScootsConfig
             SetConfigValue(whiplashY.BoundUIconfig, 12);
             SetConfigValue(backflip.BoundUIconfig, 10);
             SetConfigValue(backflipFloat.BoundUIconfig, 9);
+            SetConfigValue(crouchJumpX.BoundUIconfig, 12);
+            SetConfigValue(crouchJumpY.BoundUIconfig, 3);
+            SetConfigValue(crouchJumpDuration.BoundUIconfig, 20);
             SetConfigValue(slideAcceleration.BoundUIconfig, 25);
             SetConfigValue(extendedSlideAcceleration.BoundUIconfig, 20);
             SetConfigValue(slideDuration.BoundUIconfig, 15);
@@ -668,6 +706,9 @@ namespace SlugcatScootsConfig
             SetConfigValue(whiplashY.BoundUIconfig, 10);
             SetConfigValue(backflip.BoundUIconfig, 7);
             SetConfigValue(backflipFloat.BoundUIconfig, 5);
+            SetConfigValue(crouchJumpX.BoundUIconfig, 9);
+            SetConfigValue(crouchJumpY.BoundUIconfig, 3);
+            SetConfigValue(crouchJumpDuration.BoundUIconfig, 20);
             SetConfigValue(slideAcceleration.BoundUIconfig, 45);
             SetConfigValue(extendedSlideAcceleration.BoundUIconfig, 40);
             SetConfigValue(slideDuration.BoundUIconfig, 15);
